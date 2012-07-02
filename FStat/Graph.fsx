@@ -2,12 +2,6 @@
 #load @"__solmerged.fsx"
 #endif
 
-#r "System.Xaml.dll"
-#r "UIAutomationTypes.dll"
-#r "WindowsBase.dll"
-#r "PresentationFramework.dll"
-#r "PresentationCore.dll"
-
 open System.Windows
 open System.Threading
 open System.Windows.Threading
