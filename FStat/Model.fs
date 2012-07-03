@@ -2,6 +2,7 @@
 
 open FStat.Extensions
 open MathNet.Numerics.LinearAlgebra.Generic
+open MathNet.Numerics.LinearAlgebra.Double
 
 
 type DataSet  = DataSet of Matrix<float> * Vector<float>
@@ -24,10 +25,13 @@ type DataSet  = DataSet of Matrix<float> * Vector<float>
                                x.RowCount
 
 
+
 type Model (estimationparam, forecast:Vector<float>->Vector<float>-> float, loss:Vector<float>-> float) =
+   let augmentwone (x:Matrix<float>) = DenseMatrix(x.RowCount,1,1.).Append(x)
+
    member this.structErr  (DataSet(xtrain,ytrain)) (DataSet(xtest,ytest)) =
-      let p = estimationparam xtrain ytrain
-      let yhat = nApply (forecast p)  xtest
+      let p = estimationparam (augmentwone xtrain) ytrain
+      let yhat = nApply (forecast p)  (augmentwone xtest)
       let r = loss(ytest - yhat)
       //printfn "LOSS %A YHAT %A BETA %A" r yhat p
       r
@@ -42,3 +46,5 @@ type Model (estimationparam, forecast:Vector<float>->Vector<float>-> float, loss
                                                                              this.structErr train test)
       results |> Seq.average
 
+   member this.fit  (DataSet(xtrain,ytrain)) = 
+      estimationparam (augmentwone xtrain) ytrain

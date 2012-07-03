@@ -27,6 +27,9 @@ type Approximate = Approximate with
         fun (y:list< ^n>) -> 
             x.Length = y.Length && (List.zip x y |> List.forall ( fun (a,b) -> (Approximate $ a) b))
 let inline (=~=) x y = (Approximate $ x) y
+let equalapprox (x:list<float>)  (y:list< ^n>) = 
+   x.Length = y.Length && (List.zip x y |> List.forall(fun(a,b)->float(abs(a-b))<1.E-10))
+
 
 let inline (=~.=) x y = float (abs x-y) <  1.E-10
 
@@ -42,12 +45,8 @@ let ``unquote - passing test `` () =
 [<Fact>]
 let ``covar from rotation `` () =
     test <@  let c = Normal.rotationtoR [|System.Math.PI/2.; System.Math.PI/2.|] 
-             [ c.[0,0]; c.[0,1] ; c.[0,2] ; c.[1,2] ] =~= [1.;1.;1.;1.]  @>
-
-[<Fact>]
-let ``unquote`` () =
-    test <@  let c = Normal.rotationtoR [|System.Math.PI/2.; System.Math.PI/2.|] 
-             1 =~.= 1 @>
+             equalapprox [ c.[0,0]; c.[1,0] ; c.[2,0] ] [1.;1.;1.]  &&
+             equalapprox [ c.[1,1]; c.[1,2] ; c.[2,1] ] [0.;0.;0.] @>
 
 
 let revRevIsOrig (xs:list<int>) = List.rev(List.rev xs) = xs 

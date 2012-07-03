@@ -3,6 +3,9 @@
 open MathNet.Numerics.FSharp
 open MathNet.Numerics.LinearAlgebra.Double
 open MathNet.Numerics.LinearAlgebra.Generic
+open FStat.LinearAlgebra
+open FStat.LinearAlgebra.DenseUnits
+open Microsoft.FSharp.Math.SI
 
 module Normal = 
    let rnd = new MathNet.Numerics.Random.MersenneTwister()
@@ -11,6 +14,7 @@ module Normal =
                                          let r, theta= sqrt (-2. * (log u1)), 2. * System.Math.PI * u2  
                                          seq { yield r * sin theta; yield r * cos theta ; yield! randomNormal() }
                 randomNormal()
+   let Next() = sampleNormal() |> Seq.head
    let private mapply (m:Matrix<float>) f = m.IndexedEnumerator() |> Seq.iter(fun (i,j,v) -> m.[i,j] <- f v ); m
    let generate (covar:Matrix<float>) = 
       let R = if covar.Determinant() = 0. 
@@ -31,4 +35,11 @@ module Normal =
       thetas |> Array.iteri (fun i theta -> seq { 0 .. i } |> Seq.iter(fun j -> covar.[1+i,j] <- covar.[i,j] * sin theta )
                                             covar.[1+i,1+i] <- cos theta )
       covar
-
+   
+   let covarFromDiagAndRotation (stddev:float<_> array) rotations = 
+         let a = DenseMatrixU.diag(Vectoru(stddev))  //[|5.;1.;3.|]
+         let ar = [|1.<m>|]
+         let b = DenseMatrixU.diag(Vectoru(ar))  //[|5.;1.;3.|]
+         let d = a * b 
+         let c = rotationtoR rotations                   //[|-0.5*System.Math.PI/2.;0.3*System.Math.PI/2.|]
+         (a * c) * (a * c).Transpose()
