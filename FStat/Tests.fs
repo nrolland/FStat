@@ -5,21 +5,21 @@
 module Tests
 #endif
 
+open System
+open FsCheck
+open Prelude
 open Xunit
 open Swensen.Unquote
+
+open FStat.Extensions
 open FStat.Distributions
-open FsCheck
-open FsCheck.GenOperators
-open FsCheck.Arb
-open FsCheck.Commands
-open FsCheck.Fluent
-open FsCheck.Gen
-open FsCheck.GenBuilder
-open FsCheck.Prop
-open FsCheck.PropOperators
-open FsCheck.Random
-open FsCheck.Runner
-open Prelude
+open FStat.Model
+
+open MathNet.Numerics.FSharp
+open MathNet.Numerics.LinearAlgebra
+open MathNet.Numerics.LinearAlgebra.Generic
+open MathNet.Numerics.LinearAlgebra.Double
+
 
 type Approximate = Approximate with
     static member inline ($) (Approximate, x:^n       ) = fun (y:^n) -> float (abs (x-y)) <  1.E-10
@@ -27,8 +27,9 @@ type Approximate = Approximate with
         fun (y:list< ^n>) -> 
             x.Length = y.Length && (List.zip x y |> List.forall ( fun (a,b) -> (Approximate $ a) b))
 let inline (=~=) x y = (Approximate $ x) y
-let equalapprox (x:list<float>)  (y:list< ^n>) = 
-   x.Length = y.Length && (List.zip x y |> List.forall(fun(a,b)->float(abs(a-b))<1.E-10))
+let equalapprox (x:list<float>)  (y:list<float>) err = 
+   x.Length = y.Length && (List.zip x y |> List.forall(fun(a,b)->float(abs(a-b))<err))
+let equalapprox2  x y  err = float(abs(x-y))<err
 
 
 let inline (=~.=) x y = float (abs x-y) <  1.E-10
@@ -36,7 +37,7 @@ let inline (=~.=) x y = float (abs x-y) <  1.E-10
 let test3  = [1;2] =~= [1;2]
 
 [<Fact>]
-let ``unquote - demo Unquote xUnit support`` () =
+let ``should fail`` () =
     test <@ ([3; 2; 1; 0] |> List.map ((+) 1)) = [1 + 3..1 + 0] @>
 [<Fact>]
 let ``unquote - passing test `` () =
@@ -45,8 +46,42 @@ let ``unquote - passing test `` () =
 [<Fact>]
 let ``covar from rotation `` () =
     test <@  let c = Normal.rotationtoR [|System.Math.PI/2.; System.Math.PI/2.|] 
-             equalapprox [ c.[0,0]; c.[1,0] ; c.[2,0] ] [1.;1.;1.]  &&
-             equalapprox [ c.[1,1]; c.[1,2] ; c.[2,1] ] [0.;0.;0.] @>
+             equalapprox [ c.[0,0]; c.[1,0] ; c.[2,0] ] [1.;1.;1.] 1.E-10 &&
+             equalapprox [ c.[1,1]; c.[1,2] ; c.[2,1] ] [0.;0.;0.] 1.E-10 @>
+
+[<Fact>] 
+let testSS() = 
+  let sumsquare  (y:Vector<float>)   =  pown (y.Norm(2.)) 2 
+  let n = 100
+  let v = Double.DenseVector( Normal.sample() |> Seq.take n |> Seq.toArray)
+  test <@ equalapprox2 (sumsquare v / float n) 1.  0.1  @>
+  
+[<Fact>] 
+let testRegression() = 
+   let sumsquare  (y:Vector<float>)   =  pown (y.Norm(2.)) 2 / float y.Count
+   let LinearModel   (beta:Vector<_>)  (x:Vector<_>) =  x.DotProduct(beta)
+   let addnoise  sigma x = x + sigma * Normal.Next()
+   let LS                   (X:Matrix<_>) (Y:Vector<_>)  = let precision = (X.Transpose()*X).Inverse() 
+                                                           let beta = precision * X.Transpose().Multiply(Y)
+                                                           beta
+
+   let n = 100
+   let covar       = Normal.covarFromDiagAndRotation [|1.;1.;1.|] [|-0.5*Math.PI/2.;0.3*Math.PI/2.|]
+
+   let X           = Normal.generaten n covar |> DataMatrix
+   let beta, noise = [|5.;2.;3.|], 1.
+   let Y           = nApply (LinearModel (DenseVector(beta)) >> addnoise noise) X
+
+   let m           = Model(LinearModel, sumsquare, LS)
+   let betahat     = m.fit (DataSet(X,Y))
+
+   test <@  equalapprox2  betahat.[1] beta.[0]  0.2  && 
+            equalapprox2  betahat.[2] beta.[1]  0.2  && 
+            equalapprox2  betahat.[3] beta.[2]  0.2  
+        @>
+   ()
+
+
 
 
 let revRevIsOrig (xs:list<int>) = List.rev(List.rev xs) = xs 
@@ -55,11 +90,12 @@ let revRevIsOrig (xs:list<int>) = List.rev(List.rev xs) = xs
 let test_prop_average() = 
   Check.Quick revRevIsOrig
 
+
+
 [<EntryPoint>]
 let main args =
     printfn "Arguments passed to function : %A" args
     0
-
 
 
 

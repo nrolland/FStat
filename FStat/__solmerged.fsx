@@ -28,6 +28,7 @@
 #load @".\\Samples\MathNet.Numerics.FSharp\Histogram.fs"
 #load @".\\Samples\MathNet.Numerics.FSharp\MCMC.fs"
 #load @".\\Extensions.fs"
-#load @".\\Distributions.fs"
+#load @".\\LinearAlgebra.fs"
 #load @".\\Model.fs"
+#load @".\\Distributions.fs"
 //#load @".\\Tests.fs"

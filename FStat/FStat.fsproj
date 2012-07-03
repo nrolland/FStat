@@ -49,11 +49,12 @@
     <Compile Include="Samples\MathNet.Numerics.FSharp\Histogram.fs" />
     <Compile Include="Samples\MathNet.Numerics.FSharp\MCMC.fs" />
     <Content Include="App_Readme\MathNet.Numerics.readme.txt" />
+    <Compile Include="LinearAlgebra.fs" />
     <Compile Include="Extensions.fs" />
     <None Include="packages.config" />
     <None Include="Graph.fsx" />
-    <Compile Include="Distributions.fs" />
     <Compile Include="Model.fs" />
+    <Compile Include="Distributions.fs" />
     <None Include="Regression.fsx" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
