@@ -31,11 +31,14 @@ type Vectoru<[<Measure>]'u>  =
          and  set (key1) (value:float<'u>) = this.v.[key1] <- float value
                          
 and Matrixu<[<Measure>] 'u>  =
-   val m : Double.DenseMatrix
+   val m : DenseMatrix
    new (size:int)                               = { m = Double.DenseMatrix(size)        }
    new (sizei:int, sizej:int                  ) = { m = Double.DenseMatrix(sizei,sizej) }
    new (sizei:int, sizej:int, ar:float<'u> seq) = { m = Double.DenseMatrix(sizei,sizej, ar |> Seq.map (float)  |> Seq.toArray) }
    new (m:Generic.Matrix<float>)                = { m = Double.DenseMatrix(m.ToArray()) }
+   new (lv:Vectoru<'u> list )                   = { m = lv  |> List.map (fun v -> v.v :> Vector<float>) 
+                                                            |> Array.ofList :> System.Collections.Generic.IList<_> 
+                                                            |> DenseMatrix.CreateFromRows :?> DenseMatrix }
 
    static member Identity(order) = Matrixu<'u>(Double.DenseMatrix.Identity(order))
    static member (*)(leftSide:Matrixu<'u>, rightSide:Matrixu<'v>)    = Matrixu<'u 'v> (leftSide.m.Multiply(rightSide.m))
@@ -50,7 +53,7 @@ and Matrixu<[<Measure>] 'u>  =
 
    member this.RowEnumerator()            = let a = this.m.RowEnumerator() in  a |> Seq.map (fun (i, v) -> i, Vectoru<'u>(v))
    member this.Transpose()                = Matrixu<'u>   (this.m.Transpose())
-   member this.Divide(a:float<'v>)        = Matrixu<'u/'v>(this.m.Divide(a))
+   member this.Divide(a:float<'v>)        = Matrixu<'u/'v>(this.m.Divide(float a))
    member this.Inverse()                  = Matrixu<'u^-1>(this.m.Inverse())
    member this.Multiply(v:Vectoru<'v>)    = Vectoru<'u*'v>(this.m.Multiply(v.v))
    member this.Diagonal()                 = Vectoru<'u>   (this.m.Diagonal())
@@ -60,7 +63,12 @@ and Matrixu<[<Measure>] 'u>  =
    member this.Append(x:Matrixu<'u>)      = Matrixu<'u>   (this.m.Append(x.m))
    member this.Determinant():float<'u>    = this.m.Determinant()  |> FloatWithMeasure
    member this.Trace():float<'u>          = this.m.Trace()        |> FloatWithMeasure
-   member this.Svd()                      = let t = this.m.Svd(true) in Matrixu<'u> (t.U()), Matrixu<'u> (t.W()), Matrixu<'u> (t.VT())
+   member this.Svd()                      = let t = this.m.Svd(true) in Matrixu<1> (t.U()), Matrixu<'u> (t.W()), Matrixu<1> (t.VT())
+   member this.QR()                       = let qr = this.m.QR() in qr.Q, qr.R
+   member this.Cholesky()                 = this.m.Cholesky() 
+   
+   
+
    member this.map(f:float<'u>->float<'v>)= Matrixu<'v>(this.RowCount, this.ColumnCount, this.m.IndexedEnumerator()  |> Seq.map((fun (i,j,v) -> v) >> FloatWithMeasure >> f))
    member this.SubMatrix(rowIndex,rowLength,columnIndex,columnLength) = Matrixu<'u>   (this.m.SubMatrix(rowIndex, rowLength, columnIndex, columnLength))
 

@@ -19,7 +19,8 @@ open System
 open Microsoft.FSharp.Math.SI
 
 
-[<Measure>] type regressor
+
+[<Measure>] type regressor 
 [<Measure>] type parameter
 [<Measure>] type output = regressor * parameter
 [<Measure>] type nexp
@@ -51,8 +52,8 @@ let LSreg (lambda:float<1>) (X:Matrixu<'u>) (Y:Vectoru<'v>)    =
    let precision = (X.Transpose()*X + Matrixu<'u^2>.Identity(X.ColumnCount) * lambda ).Inverse()
    precision * X.Transpose().Multiply(Y)
 
-let covar  = Normal.covarFromDiagAndRotation [|1.;1.;1.|] [|-0.5*Math.PI/2.;0.3*Math.PI/2.|]
-let X           = Normal.generaten 50 covar |> DataMatrix<regressor>
+let covar  = Normal.covarDiagRot<regressor> [|1.;1.;1.|] [|-0.5*Math.PI/2.;0.3*Math.PI/2.|]
+let X           = let t = Normal.generaten 50 covar in Matrixu<regressor>(t)
 let toto =  let arg = [5.;2.;3.] |> List.toSeq in Vectoru<parameter>(arg)
 let beta, noise = Vectoru<parameter>([5.;2.;3.] |> List.toSeq), 1.<output>
 let Y           = (nApply (LinearModel beta >> addnoise noise)) X
@@ -66,6 +67,7 @@ let fitv = (mv.fit  d )
 
 
 
+
 let err  lambda  = Model(LinearModel, sumsquare >> float, LSreg lambda).kfold 5 d
 let err2 lambda  = Model(LinearModel, sumsquare>> float, LSreg lambda).fit d
 
@@ -75,7 +77,7 @@ lambdas |> Array.map err
 
 
 let slices max nstep = [0. .. max /float nstep .. max ]
-List.zip (slices 10. 20)(slices 10. 20 |> List.map (fun l -> let m = Model(LinearModel, sumsquare, LSreg(l)) in m.kfold 5  d)) |> FSharpChart.Line
+List.zip (slices 10. 20)(slices 10. 20 |> List.map (fun l -> let m = Model(LinearModel, sumsquare>> float, LSreg(l)) in m.kfold 5  d)) |> FSharpChart.Line
 
 [<Measure>] type C
 [<Measure>] type F

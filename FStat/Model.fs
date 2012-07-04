@@ -36,7 +36,7 @@ type DataSet<[<Measure>] 'x, [<Measure>] 'y>  = DataSet of Matrixu<'x> * Vectoru
 type Model<[<Measure>] 'p, [<Measure>] 'x, [<Measure>] 'y> 
       (forecast:Vectoru<'p>->Vectoru<'x>-> float<'y>, loss:Vectoru<'y>-> float<_>, estimationparam:Matrixu<'x>->Vectoru<'y>->Vectoru<'p>) =
    let defaultArg v = function | Some(v) -> v | _ -> v
-   let augmentwone (x:Matrixu<'x>) = Matrixu<'x>(DenseMatrix(x.RowCount,1,1.).Append(x))
+   let augmentwone (x:Matrixu<'x>) = Matrixu<'x>(DenseMatrix(x.RowCount,1,1.).Append(x.m))
 
    member this.structErr(train:DataSet<'x,'y>, ?test, ?constantIncluded) =
       let (DataSet(xtrain,ytrain)), (DataSet(xtest,ytest)) = train, defaultArg train test

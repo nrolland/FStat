@@ -20,12 +20,13 @@ module Normal =
    let generate (covar:Matrixu<'u^2>) = 
       let R = if covar.Determinant() = 0.<_> 
               then  let u, d, vt = covar.Svd()                                      //printfn "svd ok = %A  %A" (covar) ((u * d  * vt))             printfn "symetric ok = %A %A" (covar)( (u * d  * u.Transpose()))
-                    let A = (mapply d sqrt) * u.Transpose()                          //printfn "rd ok = %A %A" (d )( rd*rd)               printfn "covarrd ok = %A %A" (covar )( u*rd.Transpose()*rd*u.Transpose())
-                    let qr = A.QR() in qr.R.Transpose()                              //printfn "covar ok = %A %A" (covar)((q*r).Transpose()*(q*r))               printfn "covar2 ok = %A %A" (covar)(r.Transpose()*r)
+                    let A = (d.map sqrt) * u.Transpose()                          //printfn "rd ok = %A %A" (d )( rd*rd)               printfn "covarrd ok = %A %A" (covar )( u*rd.Transpose()*rd*u.Transpose())
+                    let _ , r = A.QR() in r.Transpose()                              //printfn "covar ok = %A %A" (covar)((q*r).Transpose()*(q*r))               printfn "covar2 ok = %A %A" (covar)(r.Transpose()*r)
                else let chol = covar.Cholesky()
                     chol.Factor
-      fun () -> let v = vector ( sample() |> Seq.take(covar.ColumnCount) |> List.ofSeq )
-                R * v
+      let Ru = Matrixu<1> R
+      fun () -> let v = Vectoru<'u>( sample() |> Seq.take(covar.ColumnCount))
+                Ru * v
    let generaten n covar = 
          let generatecovar = generate covar
          List.init n (fun _ -> generatecovar ()) 
@@ -37,11 +38,9 @@ module Normal =
                                             covar.[1+i,1+i] <- cos theta )
       covar
    
-   let covarFromDiagAndRotation (stddev:float<'u> array) rotations = 
-         let a = DenseMatrixU.diag(Vectoru(stddev))  //[|5.;1.;3.|]
-         let ar = [|1.<m>|]
-         let b = DenseMatrixU.diag(Vectoru(ar))  //[|5.;1.;3.|]
-         let d = a * b 
+   let covarDiagRot<[<Measure>]'u> (stddev:float array) rotations = 
+         //let aa = Vectoru(stddev)
+         let a = DenseMatrixU.diag(Vectoru<'u>(stddev))  //[|5.;1.;3.|]
          let c  = Matrixu<1> (rotationtoR rotations)
          (a * c) * (a * c).Transpose()
 
