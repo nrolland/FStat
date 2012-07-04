@@ -9,50 +9,65 @@ open System.Windows
 open FStat.Distributions
 open FStat.Extensions
 open FStat.Model
+open FStat.LinearAlgebra   
+
 open MSDN.FSharp.Charting
 open MathNet.Numerics.LinearAlgebra.Double
 open MathNet.Numerics.LinearAlgebra.Generic
 open MathNet.Numerics.FSharp
 open System
+open Microsoft.FSharp.Math.SI
+
+
+[<Measure>] type regressor
+[<Measure>] type parameter
+[<Measure>] type output = regressor * parameter
+[<Measure>] type nexp
 
 //General definition
-let addnoise  sigma x = x + sigma * Normal.Next()
-let sumsquare     (y:Vector<float>)               =  pown (y.Norm(2.)) 2 
-let LinearModel   (beta:Vector<_>)  (x:Vector<_>) =  x.DotProduct(beta)
+let addnoise (sigma:float<'u>) x = x + sigma * Normal.Next()
+let sumsquare  (y:Vectoru<output>)                                = (y.Norm(2.)) * (y.Norm(2.)) 
+let LinearModel  (beta:Vectoru<parameter>)(x:Vectoru<regressor> ) = x.DotProduct(beta)
+let mLinearModel (beta:Vectoru<parameter>)                        = nApply (LinearModel beta) 
+
 
 //Estimator
-let LS                   (X:Matrix<_>) (Y:Vector<_>)  = let precision = (X.Transpose()*X).Inverse() 
-                                                        let beta = precision * X.Transpose().Multiply(Y)
-                                                        beta
+let LS         (X:Matrixu<regressor>) (Y:Vectoru<output>)    =  
+   let precision = (X.Transpose()*X).Inverse() 
+   precision * X.Transpose().Multiply(Y)
 
-let LSVerbose            (X:Matrix<_>) (y:Vector<_>)  = let precision = (X.Transpose()*X).Inverse()
-                                                        let beta = precision * X.Transpose().Multiply(y)   
-                                                        let sigmahat =  1. / float(X.RowCount - X.ColumnCount - 1) * sumsquare (y - X * beta)  |> sqrt
-                                                        let spread = 1.96 * sigmahat * precision.Diagonal() 
-                                                        printfn "Estimated noise %A" sigmahat 
-                                                        printfn "Estimated beta 5pct \n low  %A \n high %A" ((beta - spread).ToArray()) ((beta + spread).ToArray())
-                                                        beta
+let LSVerbose  (X:Matrixu<regressor>) (Y:Vectoru<output>)    =  
+   let precision = (X.Transpose()*X).Inverse()
+   let a = precision * X.Transpose()
+   let beta = a.Multiply(Y)
+   let sigmahat =  1. / float(X.RowCount - X.ColumnCount - 1) * sumsquare (Y - mLinearModel beta X)  |> sqrt
+   let spread = 1.96 * sigmahat   * (precision.Diagonal().map sqrt)
+   let a = (beta - spread)
+   printfn "Estimated noise %A" sigmahat 
+   printfn "Estimated beta 5pct \n low  %A \n high %A" (beta - spread) ((beta + spread))
+   beta
 
-let LSreg (lambda:float) (X:Matrix<_>) (Y:Vector<_>)  = let precision = (X.Transpose()*X + lambda * DenseMatrix.Identity(X.ColumnCount) ).Inverse()
-                                                        precision * X.Transpose().Multiply(Y)
+let LSreg (lambda:float<1>) (X:Matrixu<'u>) (Y:Vectoru<'v>)    = 
+   let precision = (X.Transpose()*X + Matrixu<'u^2>.Identity(X.ColumnCount) * lambda ).Inverse()
+   precision * X.Transpose().Multiply(Y)
 
 let covar  = Normal.covarFromDiagAndRotation [|1.;1.;1.|] [|-0.5*Math.PI/2.;0.3*Math.PI/2.|]
-
-let X           = Normal.generaten 50 covar |> DataMatrix
-let beta, noise = DenseVector( [|5.;2.;3.|]), 1.
-let Y           = nApply (LinearModel beta >> addnoise noise) X
-let m           = Model(LinearModel, sumsquare, LS)
-let mv          = Model(LinearModel, sumsquare, LSVerbose)
-let mreg        = Model(LinearModel, sumsquare, LSreg 1.)
+let X           = Normal.generaten 50 covar |> DataMatrix<regressor>
+let toto =  let arg = [5.;2.;3.] |> List.toSeq in Vectoru<parameter>(arg)
+let beta, noise = Vectoru<parameter>([5.;2.;3.] |> List.toSeq), 1.<output>
+let Y           = (nApply (LinearModel beta >> addnoise noise)) X
+let m           = Model(LinearModel, sumsquare >> float, LS)
+let mv          = Model(LinearModel, sumsquare >> float, LSVerbose)
+let mreg        = let est = LSreg 1. in Model(LinearModel, sumsquare >> float, est)
 
 let d = DataSet(X,Y)
-let fit =   (m.fit  d ).ToArray()
-let fitv = (mv.fit  d ).ToArray()
+let fit =   (m.fit  d )
+let fitv = (mv.fit  d )
 
 
 
-let err  lambda  = Model(LinearModel, sumsquare, LSreg lambda).kfold 5 d
-let err2 lambda  = (Model(LinearModel, sumsquare, LSreg lambda).fit d).ToArray()
+let err  lambda  = Model(LinearModel, sumsquare >> float, LSreg lambda).kfold 5 d
+let err2 lambda  = Model(LinearModel, sumsquare>> float, LSreg lambda).fit d
 
 let lambdas = [|0. .. 0.5 .. 10. |]
 lambdas |> Array.map err2

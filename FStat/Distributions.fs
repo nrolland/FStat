@@ -5,7 +5,6 @@ open MathNet.Numerics.LinearAlgebra.Double
 open MathNet.Numerics.LinearAlgebra.Generic
 open Microsoft.FSharp.Math.SI
 open FStat.LinearAlgebra
-open FStat.LinearAlgebra.DenseUnits
 
 module Normal = 
    let rnd = new MathNet.Numerics.Random.MersenneTwister()
@@ -18,10 +17,9 @@ module Normal =
                 randomNormal()
    let Next()   = sample() |> Seq.head
    let NextV(n) = DenseVector( sample() |> Seq.take n |> Seq.toArray)
-   let private mapply (m:Matrix<float>) f = m.IndexedEnumerator() |> Seq.iter(fun (i,j,v) -> m.[i,j] <- f v ); m
-   let generate (covar:Matrix<float>) = 
-      let R = if covar.Determinant() = 0. 
-              then  let u, d, vt = let t = covar.Svd(true) in t.U(), t.W(), t.VT()   //printfn "svd ok = %A  %A" (covar) ((u * d  * vt))             printfn "symetric ok = %A %A" (covar)( (u * d  * u.Transpose()))
+   let generate (covar:Matrixu<'u^2>) = 
+      let R = if covar.Determinant() = 0.<_> 
+              then  let u, d, vt = covar.Svd()                                      //printfn "svd ok = %A  %A" (covar) ((u * d  * vt))             printfn "symetric ok = %A %A" (covar)( (u * d  * u.Transpose()))
                     let A = (mapply d sqrt) * u.Transpose()                          //printfn "rd ok = %A %A" (d )( rd*rd)               printfn "covarrd ok = %A %A" (covar )( u*rd.Transpose()*rd*u.Transpose())
                     let qr = A.QR() in qr.R.Transpose()                              //printfn "covar ok = %A %A" (covar)((q*r).Transpose()*(q*r))               printfn "covar2 ok = %A %A" (covar)(r.Transpose()*r)
                else let chol = covar.Cholesky()
@@ -39,14 +37,15 @@ module Normal =
                                             covar.[1+i,1+i] <- cos theta )
       covar
    
-   let covarFromDiagAndRotation (stddev:float<_> array) rotations = 
+   let covarFromDiagAndRotation (stddev:float<'u> array) rotations = 
          let a = DenseMatrixU.diag(Vectoru(stddev))  //[|5.;1.;3.|]
          let ar = [|1.<m>|]
          let b = DenseMatrixU.diag(Vectoru(ar))  //[|5.;1.;3.|]
-         //let d = a * b 
-         let c = rotationtoR rotations                   //[|-0.5*System.Math.PI/2.;0.3*System.Math.PI/2.|]
+         let d = a * b 
+         let c  = Matrixu<1> (rotationtoR rotations)
          (a * c) * (a * c).Transpose()
 
 
-   let negLogLike mu (sigma:Matrixu<_,_>) (x:Vectoru<_>) =
-      0.5 * ( (float x.Count)  * log2pi + log (sigma.Determinant()) + log ( (sigma * (x.OuterProduct(x))).Trace() )  )
+   let negLogLike (mu:float<'u>) (sigma:Matrixu<'u^2>)  =
+      let precision = sigma.Inverse()
+      fun (x:Vectoru<'u>) -> 0.5 * ((float x.Count)  * log2pi + log (float (sigma.Determinant())) + log ( (precision  * (x.OuterProduct(x))).Trace() )  )
