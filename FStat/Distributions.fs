@@ -29,7 +29,7 @@ module Normal =
                 Ru * v
    let generaten n covar = 
          let generatecovar = generate covar
-         List.init n (fun _ -> generatecovar ()) 
+         Matrixu(List.init n (fun _ -> generatecovar ()))
 
    //0 : uncorrelated, pi/2 :100% correlated
    let rotationtoR (thetas:float array) =

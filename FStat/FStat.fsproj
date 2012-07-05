@@ -53,8 +53,8 @@
     <Compile Include="Extensions.fs" />
     <None Include="packages.config" />
     <None Include="Graph.fsx" />
-    <Compile Include="Model.fs" />
     <Compile Include="Distributions.fs" />
+    <Compile Include="Model.fs" />
     <None Include="Regression.fsx" />
     <Compile Include="Tests.fs" />
   </ItemGroup>

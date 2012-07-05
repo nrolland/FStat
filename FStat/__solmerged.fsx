@@ -29,6 +29,6 @@
 #load @".\\Samples\MathNet.Numerics.FSharp\MCMC.fs"
 #load @".\\LinearAlgebra.fs"
 #load @".\\Extensions.fs"
-#load @".\\Model.fs"
 #load @".\\Distributions.fs"
+#load @".\\Model.fs"
 #load @".\\Tests.fs"

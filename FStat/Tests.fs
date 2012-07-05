@@ -11,9 +11,11 @@ open Prelude
 open Xunit
 open Swensen.Unquote
 
+open FStat.Model
 open FStat.Extensions
 open FStat.Distributions
-open FStat.Model
+open FStat.LinearAlgebra
+
 
 open MathNet.Numerics.FSharp
 open MathNet.Numerics.LinearAlgebra
@@ -27,9 +29,9 @@ type Approximate = Approximate with
         fun (y:list< ^n>) -> 
             x.Length = y.Length && (List.zip x y |> List.forall ( fun (a,b) -> (Approximate $ a) b))
 let inline (=~=) x y = (Approximate $ x) y
-let equalapprox (x:list<float>)  (y:list<float>) err = 
+let equalapprox (x:list<float<'u>>)  (y:list<float<'u>>) err = 
    x.Length = y.Length && (List.zip x y |> List.forall(fun(a,b)->float(abs(a-b))<err))
-let equalapprox2  x y  err = float(abs(x-y))<err
+let equalapprox2  (x:float<'u>) (y:float<'u>)  err = float(abs(x-y))<err
 
 
 let inline (=~.=) x y = float (abs x-y) <  1.E-10
@@ -53,33 +55,29 @@ let ``covar from rotation `` () =
 let testSS() = 
   let sumsquare  (y:Vector<float>)   =  pown (y.Norm(2.)) 2 
   let n = 100
-  let v = Double.DenseVector( Normal.sample() |> Seq.take n |> Seq.toArray)
-  test <@ equalapprox2 (sumsquare v / float n) 1.  0.1  @>
+  let v = Double.DenseVector( Normal.sample() |> Seq.take n |> Seq.toArray)   
+  test <@ equalapprox2 (sumsquare v / float n) 1.  (1.96*2./sqrt(float n))  @> 
+  //apply TCL : xi = mu,sigma2 // sum xi = n.mu,n.sigma2 // 1/n sum xi = mu,sigma2/n
+  //X2 = 1, 2 
+ 
   
 [<Fact>] 
 let testRegression() = 
-   let sumsquare  (y:Vector<float>)   =  pown (y.Norm(2.)) 2 / float y.Count
-   let LinearModel   (beta:Vector<_>)  (x:Vector<_>) =  x.DotProduct(beta)
-   let addnoise  sigma x = x + sigma * Normal.Next()
-   let LS                   (X:Matrix<_>) (Y:Vector<_>)  = let precision = (X.Transpose()*X).Inverse() 
-                                                           let beta = precision * X.Transpose().Multiply(Y)
-                                                           beta
 
    let n = 100
-   let covar       = Normal.covarFromDiagAndRotation [|1.;1.;1.|] [|-0.5*Math.PI/2.;0.3*Math.PI/2.|]
+   let covar       = Normal.covarDiagRot<regressor>[|1.;1.;1.|] [|-0.5*Math.PI/2.;0.3*Math.PI/2.|]
 
-   let X           = Normal.generaten n covar |> DataMatrix
-   let beta, noise = [|5.;2.;3.|], 1.
-   let Y           = nApply (LinearModel (DenseVector(beta)) >> addnoise noise) X
+   let X           = Normal.generaten n covar
+   let beta, noise = Vectoru([|5.;2.;3.|]), 1.<output>
+   let Y           = (nApply (LinearModel beta >> addnoise noise)) X
 
-   let m           = Model(LinearModel, sumsquare, LS)
+   let m           = Model(LinearModel, sumsquare >> float, LS)
    let betahat     = m.fit (DataSet(X,Y))
 
-   test <@  equalapprox2  betahat.[1] beta.[0]  0.2  && 
-            equalapprox2  betahat.[2] beta.[1]  0.2  && 
-            equalapprox2  betahat.[3] beta.[2]  0.2  
+   test <@  equalapprox2  betahat.[1] beta.[0]  (1.96/sqrt(float n))  && 
+            equalapprox2  betahat.[2] beta.[1]  (1.96/sqrt(float n))  && 
+            equalapprox2  betahat.[3] beta.[2]  (1.96/sqrt(float n))  
         @>
-   ()
 
 
 
